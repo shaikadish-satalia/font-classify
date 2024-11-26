@@ -4,6 +4,8 @@ import numpy as np
 import os
 import timm
 import torch
+from pathlib import Path
+import json
 
 from albumentations.pytorch import ToTensorV2
 from train import CutMax, ResizeWithPad
@@ -23,7 +25,7 @@ def parse_args():
     )
     parser.add_argument(
         "--data_folder",
-        type=str,
+        type=Path,
         default="sample_data/output/Lato-Regular",
         help="Path to images to run inference on",
     )
@@ -50,7 +52,7 @@ def main(args):
     )
     model.to(device)
 
-    model_path = os.path.join(args.model_folder, "trained_model.pth")
+    model_path = os.path.join(args.model_folder, "best_model_params.pt")
     checkpoint = torch.load(model_path, map_location=torch.device(device))
     model.load_state_dict(checkpoint)
     model.eval()
@@ -64,13 +66,21 @@ def main(args):
         ]
     )
 
-    for image_file in os.listdir(args.data_folder):
-        image_path = os.path.join(args.data_folder, image_file)
-        image = np.array(Image.open(image_path))
-        image = transform(image=image)["image"].unsqueeze(0)
-        probs = model(image)
-        _, prediction = torch.max(probs, 1)
-        print(image_file, class_names[prediction])
+    results = {}
+    for i, class_name in enumerate(class_names):
+        for image_file in os.listdir(args.data_folder/class_name):
+            image_path = os.path.join(args.data_folder/class_name, image_file)
+            image = np.array(Image.open(image_path).convert("RGB"))
+            image = transform(image=image)["image"].unsqueeze(0).to(device)
+            probs = model(image)
+            _, prediction = torch.max(probs, 1)
+            print(image_file, class_names[prediction])
+            results[str(image_path)] = {
+                "prediction": {"name": class_names[prediction], "i": int(prediction)},
+                "ground_truth": {"name": class_name, "i":i}
+            }
+    with open("inference_results.json", "w") as json_file:
+        json.dump(results, json_file, indent=4)
 
 
 if __name__ == "__main__":

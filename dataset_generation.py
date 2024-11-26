@@ -360,17 +360,21 @@ class FontGenerator:
 
     def get_random_font(self):
         font_name = random.choice(list(self.fonts.keys()))
+        return self.get_font(font_name), font_name
+    
+    def get_font(self, font_name):
         font_path = self.fonts[font_name]
         if font_name in self.fonts_cache:
             font = self.fonts_cache[font_name]
         else:
             font = ImageFont.truetype(font_path, size=32)
             self.fonts_cache[font_name] = font
-        return font, font_name
+        return font
 
     def generate_image(
         self,
         text,
+        font_name,
         font_size: int = 32,
         font_color: Optional[Tuple[int, int, int]] = (0, 0, 0),
         position: str = "center",  # center, random
@@ -409,7 +413,7 @@ class FontGenerator:
         draw = ImageDraw.Draw(image)
 
         # Select random font and font size
-        font, font_name = self.get_random_font()
+        font = self.get_font(font_name)
         font = font.font_variant(size=font_size)
 
         if font_color is None:
@@ -595,43 +599,45 @@ def main(args):
         textfile=args.textfile,
     )
 
-    # Generate images
-    for i in tqdm(range(args.N)):
-        try:
-            text = font_generator.generate_text()
+    font_names = list(font_generator.fonts.keys())
+    for font_name in tqdm(font_names):
+        for i in tqdm(range(args.N//len(font_names)), desc=f"Generating images for {font_name}"):
+            try:
+                text = font_generator.generate_text()
 
-            if np.random.rand() < args.contrast_color_ratio:
-                font_color = None
-            else:
-                font_color = (0, 0, 0)
+                if np.random.rand() < args.contrast_color_ratio:
+                    font_color = None
+                else:
+                    font_color = (0, 0, 0)
 
-            font_size = random.randint(args.font_size_min, args.font_size_max)
+                font_size = random.randint(args.font_size_min, args.font_size_max)
 
-            if random.random() < args.background_ratio:
-                background_image = True
-                background_color = None
-            else:
-                background_image = False
-                background_color = tuple(np.random.randint(0, 256, 3))
+                if random.random() < args.background_ratio:
+                    background_image = True
+                    background_color = None
+                else:
+                    background_image = False
+                    background_color = tuple(np.random.randint(0, 256, 3))
 
-            # Generate image
-            image, font_name, font_color = font_generator.generate_image(
-                text,
-                position="random",
-                background_image=background_image,
-                font_size=font_size,
-                padding=10,
-                font_color=font_color,
-                background_color=background_color,
-            )
+                # Generate image
+                image, font_name, font_color = font_generator.generate_image(
+                    text,
+                    font_name,
+                    position="random",
+                    background_image=background_image,
+                    font_size=font_size,
+                    padding=10,
+                    font_color=font_color,
+                    background_color=background_color,
+                )
 
-            # Save image
-            (Path(args.output) / font_name).mkdir(exist_ok=True)
-            image.save(os.path.join(args.output, font_name, f"{i}.jpg"))
-        except Exception as e:
-            print(f"Error while generating image {i}: {e}")
-            traceback.print_exc()
-            continue
+                # Save image
+                (Path(args.output) / font_name).mkdir(exist_ok=True)
+                image.save(os.path.join(args.output, font_name, f"{i}.jpg"))
+            except Exception as e:
+                print(f"Error while generating image {i}: {e}")
+                traceback.print_exc()
+                continue
 
 
 if __name__ == "__main__":

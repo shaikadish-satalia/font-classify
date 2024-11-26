@@ -241,9 +241,10 @@ def main(args):
     # Decay LR by a factor of 0.1 every 7 epochs
     # scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.2)
     # lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.num_epochs, eta_min=0)
-    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(
-        optimizer, T_0=args.num_epochs, T_mult=1, eta_min=0
-    )
+    # scheduler = lr_scheduler.CosineAnnealingWarmRestarts(
+    #     optimizer, T_0=args.num_epochs, T_mult=1, eta_min=0
+    # )
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.75, patience=5, verbose=True)
 
     # Create a TensorBoard writer
     writer = SummaryWriter()
@@ -290,17 +291,20 @@ def main(args):
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-            if phase == "train":
-                scheduler.step()
+            # if phase == "train":
+            #     scheduler.step()
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
-            print(f"{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
+            if phase == "val": 
+                scheduler.step(epoch_loss)
+                    
+            print(f"{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f} LR: {scheduler.get_last_lr()}")
 
             # Write the loss to TensorBoard
-            writer.add_scalar("Loss", epoch_loss, epoch)
-            writer.add_scalar("Accuracy", epoch_acc, epoch)
+            writer.add_scalar(f"{phase}_Loss", epoch_loss, epoch)
+            writer.add_scalar(f"{phase}_Accuracy", epoch_acc, epoch)
 
             # deep copy the model
             if phase == "val" and epoch_acc > best_acc:
