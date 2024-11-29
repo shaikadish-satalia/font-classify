@@ -335,8 +335,7 @@ class FontGenerator:
     def load_backgrounds(self):
         self.backgrounds = []
         for file in os.listdir(self.backgrounds_path):
-            if file.endswith(".jpg") or file.endswith(".png") or file.endswith(".webp"):
-                self.backgrounds.append(os.path.join(self.backgrounds_path, file))
+            self.backgrounds.append(os.path.join(self.backgrounds_path, file))
 
         # Create a cache for background images
         self.backgrounds_cache = {}
