@@ -230,10 +230,13 @@ def main(args):
     # Decay LR by a factor of 0.1 every 7 epochs
     # scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.2)
     # lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.num_epochs, eta_min=0)
-    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(
-        optimizer, T_0=args.num_epochs, T_mult=1, eta_min=0
-    )
+    # scheduler = lr_scheduler.CosineAnnealingWarmRestarts(
+    #     optimizer, T_0=args.num_epochs//4, T_mult=1, eta_min=0
+    # )
     # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.75, patience=5, verbose=True)
+    # Define OneCycleLR scheduler
+    total_steps = len(train_dataloader) * args.num_epochs  # Number of iterations in total
+    scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=args.learning_rate*10, total_steps=total_steps, pct_start=0.1)
 
     # Create a TensorBoard writer
     writer = SummaryWriter()
@@ -276,12 +279,13 @@ def main(args):
                     if phase == "train":
                         loss.backward()
                         optimizer.step()
-
+                        writer.add_scalar("Learning_Rate", scheduler.get_last_lr()[0],epoch)
+                        scheduler.step()
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-            if phase == "train":
-                scheduler.step()
+            # if phase == "train":
+            #     scheduler.step()
 
             epoch_loss = running_loss / dataset_sizes[phase]
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
